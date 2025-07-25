@@ -159,7 +159,8 @@ async function generatePresignedUrl(params: {
 
   // Create the URL without query parameters first
   const host = `${bucketName}.s3.${region}.amazonaws.com`;
-  const baseUrl = `https://${host}/${encodeURIComponent(objectKey)}`;
+  // const baseUrl = `https://${host}/${encodeURIComponent(objectKey)}`;
+  const baseUrl = `https://${host}/${objectKey}`; // slashes NOT encoded
 
   // AWS Signature Version 4 parameters
   const algorithm = 'AWS4-HMAC-SHA256';
@@ -175,11 +176,12 @@ async function generatePresignedUrl(params: {
     'X-Amz-Credential': credential,
     'X-Amz-Date': amzDate,
     'X-Amz-Expires': '900', // 15 minutes
+    // 'X-Amz-SignedHeaders': 'Content-Type;host'
     'X-Amz-SignedHeaders': 'content-type;host'
   });
 
   // Create canonical request
-  const canonicalUri = `/${encodeURIComponent(objectKey)}`;
+  const canonicalUri = `/${objectKey}`; 
   const canonicalQueryString = queryParams.toString();
   const canonicalHeaders = `content-type:${contentType}\nhost:${host}\n`;
   const signedHeaders = 'content-type;host';

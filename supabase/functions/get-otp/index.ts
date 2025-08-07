@@ -3,7 +3,7 @@ import Joi from "https://esm.sh/joi@17.9.2";
 import responseMessage from '../_assets/responseMessages.ts';
 import userService from '../_services/userService.ts';
 import { FunctionsHttpError, FunctionsRelayError, FunctionsFetchError } from "https://esm.sh/@supabase/supabase-js@2.42.0";
-Deno.serve(async (req)=>{
+Deno.serve(async (req) => {
   const corsHeaders = {
     "Access-Control-Allow-Origin": "*",
     "Access-Control-Allow-Methods": "POST, OPTIONS",
@@ -30,15 +30,24 @@ Deno.serve(async (req)=>{
     }
     const body = await req.json();
     const { email } = await validationSchema.validateAsync(body);
-    //   const otp = await Util.generate4DigitOTP()
-    //   let current_time = new Date();
-    //   current_time.setMinutes(current_time.getMinutes() + 2);
-    //   let expires_at = current_time.toISOString();
-    //  const data = await userService.addOtp({email: body.email, otp_code: otp, expires_at: expires_at})
+    // Check if user exists in users table before proceeding
+    const userExists = await userService.checkUserExists(email);
+    if (!userExists) {
+      return new Response(JSON.stringify({
+        error: 'User not found. Please register first or contact support.'
+      }), {
+        headers: {
+          ...corsHeaders, 
+          'Content-Type': 'application/json'
+        },
+        status: 404
+      });
+    }
+    // Check if user is blocked
     await userService.checkUserBlocked(email);
     const data = await userService.sendOtp(email);
     return new Response(JSON.stringify({
-      message: 'Otp sent successfully'
+      message: 'OTP sent successfully'
     }), {
       headers: {
         ...corsHeaders, 
@@ -47,8 +56,9 @@ Deno.serve(async (req)=>{
     });
   } catch (error) {
     let errorMessage = '';
+    let statusCode = 400;
     if (error instanceof FunctionsHttpError) {
-      console.log('Function returned an error', errorMessage);
+      console.log('Function returned an error', error.message);
       errorMessage = await error.context.json();
     } else if (error instanceof FunctionsRelayError) {
       errorMessage = error.message;
@@ -58,6 +68,10 @@ Deno.serve(async (req)=>{
       console.log('Fetch error:', error.message);
     } else {
       errorMessage = error.message;
+      // Handle specific validation errors
+      if (error.details && error.details[0]) {
+        errorMessage = error.details[0].message;
+      }
     }
     return new Response(JSON.stringify({
       error: errorMessage
@@ -66,7 +80,7 @@ Deno.serve(async (req)=>{
         ...corsHeaders, 
         'Content-Type': 'application/json'
       },
-      status: 400
+      status: statusCode
     });
   }
 });

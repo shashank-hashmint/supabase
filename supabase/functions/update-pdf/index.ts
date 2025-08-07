@@ -1,13 +1,10 @@
 /// <reference types="https://esm.sh/@supabase/functions-js/src/edge-runtime.d.ts" />
 import Joi from "https://esm.sh/joi@17.9.2";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.42.0'
+import { authenticateUser, getCorsHeaders } from '../_shared/authUtils.ts'
 
 Deno.serve(async (req) => {
-  const corsHeaders = {
-    "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Methods": "POST, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type, Authorization"
-  };
+  const corsHeaders = getCorsHeaders();
 
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders, status: 204 });
@@ -43,15 +40,13 @@ Deno.serve(async (req) => {
       }
     );
 
-    // Get the user from the JWT token
-    const {
-      data: { user },
-      error: authError,
-    } = await supabaseClient.auth.getUser();
-
-    if (authError || !user) {
+    // Authenticate user using shared utility
+    let user: any;
+    try {
+      user = await authenticateUser(req);
+    } catch (authError) {
       return new Response(JSON.stringify({
-        error: 'Unauthorized'
+        error: authError.message
       }), {
         headers: { 
           ...corsHeaders, 

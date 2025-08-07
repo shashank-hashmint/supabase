@@ -170,6 +170,29 @@ let userService = {
       wrong_attempts: 0
     }).eq('email', email);
     return;
-  }
+  },
+  checkUserExists: async (email) => {
+    try {
+      const { data, error } = await supabase.from('users').select('id').eq('email', email);
+      
+      if (error) {
+        console.error('Error checking user existence:', error);
+        throw badRequest('Failed to verify user existence');
+      }
+      
+      // Return true if user exists (data array has items), false otherwise
+      return data && data.length > 0;
+    } catch (error) {
+      console.error('Error in checkUserExists:', error);
+      
+      // If it's already our custom API error, re-throw it
+      if (error.statusCode) {
+        throw error;
+      }
+      
+      // For unexpected errors, throw a generic API error
+      throw badRequest('Failed to verify user existence');
+    }
+  },
 };
 export default userService = userService;
